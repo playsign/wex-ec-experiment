@@ -88,6 +88,7 @@ function Attribute(typeId) {
     this.value = null;
     this.typeId = typeId;
     this.typeName = attributeTypeNames[typeId];
+    this.changed = new signals.Signal();
 }
 
 // String
@@ -97,11 +98,22 @@ function AttributeString() {
 }
 AttributeString.prototype = new Attribute(cAttributeString);
 
-AttributeString.prototype.fromBinary = function(dd){
+AttributeString.prototype.fromBinary = function(dd) {
     this.value = dd.readUtf8String();
 };
 
-AttributeString.prototype.toBinary = function(ds){
+AttributeString.prototype.setValue = function(value, opts) {
+    this.value = value;
+    var silent = false;
+    if (opts && opts.silent)
+        true; /* nop */
+    else {
+        console.log("dispatching changed signal");
+        this.changed.dispatch(value);
+    }
+};
+
+AttributeString.prototype.toBinary = function(ds) {
     ds.addUtf8String(this.value);
 };
 
@@ -291,7 +303,7 @@ AttributeQuat.prototype.toBinary = function(ds){
 // AssetReference
 
 function AttributeAssetReference() {
-    this.value = {}
+    this.value = {};
     this.value.ref = "";
     this.value.type = "";
 }
@@ -305,10 +317,22 @@ AttributeAssetReference.prototype.toBinary = function(ds){
     ds.addString(this.value.ref);
 };
 
+AttributeAssetReference.prototype.setValue = function(value, opts) {
+    this.value.ref = value;
+    var silent = false;
+    if (opts && opts.silent)
+        42;
+    else {
+        console.log("dispatching changed signal");
+        this.changed.dispatch(value);
+    }
+};
+
+
 // AssetReferenceList
 
 function AttributeAssetReferenceList() {
-    this.value = []
+    this.value = [];
 }
 
 AttributeAssetReferenceList.prototype = new Attribute(cAttributeAssetReference);

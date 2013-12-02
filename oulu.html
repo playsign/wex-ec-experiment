@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>OuluThreeJS</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel=stylesheet href="oulu/css/base.css"/>
+        <script type="text/javascript" src="src/util/Signals.js"></script>
+        <script type="text/javascript" src="src/network/DataSerializer.js"></script>
+        <script type="text/javascript" src="src/network/DataDeserializer.js"></script>
+        <script type="text/javascript" src="src/network/WebSocketClient.js"></script>
+        <script type="text/javascript" src="src/network/SyncManager.js"></script>
+        <script type="text/javascript" src="src/scene/Attribute.js"></script>
+        <script type="text/javascript" src="src/scene/Component.js"></script>
+        <script type="text/javascript" src="src/scene/Entity.js"></script>
+        <script type="text/javascript" src="src/scene/Scene.js"></script>
+        <script type="text/javascript" src="src/scene/EC_EnvironmentLight.js"></script>
+        <script type="text/javascript" src="src/scene/EC_Mesh.js"></script>
+        <script type="text/javascript" src="src/scene/EC_Name.js"></script>
+        <script type="text/javascript" src="src/scene/EC_Placeable.js"></script>
+        <script type="text/javascript" src="src/scene/EC_RigidBody.js"></script>
+        <script type="text/javascript" src="src/scene/EC_Script.js"></script>
+        <script type="text/javascript" src="src/scene/EC_Sky.js"></script>
+        <script type="text/javascript" src="DomTest.js"></script>
+
+        <script src="oulu/libs/Three.js"></script>
+        <script src="oulu/libs/FreeLook.js"></script>
+        <script src="oulu/libs/THREEx.KeyboardState.js"></script>
+        <script src="oulu/libs/THREEx.FullScreen.js"></script>
+        <script src="oulu/libs/THREEx.WindowResize.js"></script>
+        <script src="oulu/Car.js"></script>
+        <script src="oulu/libs/jquery-1.9.1.js"></script>
+        <script src="oulu/libs/jquery-ui.js"></script>
+        <link rel=stylesheet href="oulu/css/jquery-ui.css" />
+        <link rel=stylesheet href="oulu/css/info.css"/>
+        <script src="oulu/libs/info.js"></script>
+        <script src="oulu/flyButton.js"></script>
+</head>
+<body>
+
+<div id="infoButton"></div>
+<div id="flyButton"></div>
+<div id="infoBox" title="Information">
+Movement: arrows or w,a,s,d <br>
+Fly up: space <br>
+Fly down: shift <br>
+Fly mode toggle: f button
+<a href="http://www.playsign.net/">http://www.playsign.net/</a>
+</div>
+<!-- ------------------------------------------------------------ -->
+
+<div id="ThreeJS" style="position: absolute; left:0px; top:0px"></div>
+<script src="oulu/Oulu.js"></script>
+
+</body>
+</html>

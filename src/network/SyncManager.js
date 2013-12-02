@@ -37,6 +37,9 @@ SyncManager.prototype = {
         case cRemoveEntity:
             this.handleRemoveEntity(dd);
             break;
+        case cEntityAction:
+            this.handleEntityAction(dd);
+            break;
         }
     },
     
@@ -47,7 +50,7 @@ SyncManager.prototype = {
         var tempFlag = dd.readU8(); /// \todo Handle
         var numComponents = dd.readU16(); /// \todo Should be VLE as in native client protocol
 
-        var entity = scene.createEntity(entityId);
+        var entity = this.scene.createEntity(entityId);
         if (entity == null)
             return;
         console.log("Created entity id " + entity.id);
@@ -89,6 +92,28 @@ SyncManager.prototype = {
 
     handleRemoveEntity : function(dd) {
         console.log("RemoveEntity");
-    }
+    },
 
-}
+    handleEntityAction: function(dd) {
+    // <!-- Replicates entity action. Client<->Server -->
+    // <message id="120" name="EntityAction" reliable="true" inOrder="true" priority="100">
+    //     <u32 name="entityId" />
+    //     <s8 name="name" dynamicCount="8"/>
+    //     <u8 name="executionType" />
+    //     <struct name="parameters" dynamicCount="8">
+    //         <s8 name="parameter" dynamicCount="8" />
+    //     </struct>
+    // </message>
+        var entId = dd.readU32();
+        // readString ok for "name" (ref. C++ MsgEntityAction::SerializeTo())
+        var name = dd.readString();
+        var executionType = dd.readU8();
+        var paramCount = dd.readU8();
+        var params = [];
+        for (var i = 0; i < paramCount; i++) {
+            var paramLength = dd.readVLE();
+            var paramBytes = dd.readArrayBuffer(paramLength);
+            params.push(paramBytes);
+        }
+    },
+};
