@@ -3,7 +3,7 @@
 /* global WebSocketClient, Scene, SyncManager, THREE, document, window, console, requestAnimationFrame, performance */
 "use strict";
 
-var useCubes = true;
+var useCubes = false;
 
 function WTModel() {
     this.client = new WebSocketClient();
@@ -38,6 +38,9 @@ function ThreeView() {
     this.scene = new THREE.Scene();
     this.scene.add(this.camera);
 
+    this.pointLight = new THREE.PointLight(0xffffff);
+    this.pointLight.position.set(-100,200,100);
+
     this.scene.add(new THREE.AmbientLight(0x6b6b6b));
     
     var geometry = new THREE.CubeGeometry( 2, 2, 2 );
@@ -50,28 +53,7 @@ function ThreeView() {
     var material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, overdraw: 0.5 } );
     this.cubeGeometry = geometry;
     this.cubeMaterial = material;
-
-    // var jsonLoader = new THREE.JSONLoader();
-    // var thisIsThis = this;
-    // var loadStart = performance.now();
-    // jsonLoader.load("cube.json", function(geometry, loadedMaterial) {
-    //     console.log("loaded from json:", geometry, loadedMaterial);
-    //     // for ( var i = 0; i < geometry.faces.length; i += 2 ) {
-    //     //     var hex = Math.random() * 0xffffff;
-    //     //     geometry.faces[ i ].color.setHex( hex );
-    //     //     geometry.faces[ i + 1 ].color.setHex( hex );
-            
-    //     // }
-
-    //     // var faceColorsMaterial = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, overdraw: 0.5 } );
-       
-    //     // thisIsThis.cubemesh = new THREE.Mesh(geometry, faceColorsMaterial);
-    //     thisIsThis.cubemesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(loadedMaterial));
-    //     thisIsThis.cubemesh.position.y = 150;
-    //     thisIsThis.scene.add(thisIsThis.cubemesh);
-    //     console.log("added", performance.now() - loadStart);
-    // });
-
+    this.wireframeMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00, wireframe: true, transparent: true } );
 }
 
 function jsonLoad(url, addCallback) {
@@ -88,6 +70,12 @@ function checkDefined() {
             debugger; // throw("undefined value, arg #" + i);
 }
 
+function check() {
+    for (var i = 0; i < arguments.length; i++)
+        if (arguments[i] !== true)
+            debugger; // throw("undefined value, arg #" + i);
+}
+
 ThreeView.prototype.render = function() {
     checkDefined(this.scene, this.camera);
     this.renderer.render(this.scene, this.camera);
@@ -97,11 +85,19 @@ ThreeView.prototype.render = function() {
 function copyXyz(src, dst) {
     dst.x = src.x; dst.y = src.y; dst.z = src.z;
 }
+function copyXyzMapped(src, dst, mapfun) {
+    dst.x = mapfun(src.x); dst.y = mapfun(src.y); dst.z = mapfun(src.z);
+}
+
+function degToRad(val) {
+    return val * (Math.PI/180);
+}
 
 function updateFromTransform(threeMesh, placeable) {
+    checkDefined(placeable, threeMesh);   
     copyXyz(placeable.transform.value.pos, threeMesh.position);
     copyXyz(placeable.transform.value.scale, threeMesh.scale);
-    copyXyz(placeable.transform.value.rot, threeMesh.rotation);
+    copyXyzMapped(placeable.transform.value.rot, threeMesh.rotation, degToRad);
     threeMesh.needsUpdate = true;
 }
 
@@ -109,27 +105,34 @@ ThreeView.prototype.addOrUpdate = function(entity, placeable, meshComp) {
     checkDefined(entity, placeable, meshComp);
     checkDefined(entity.id);
     var cube = this.objectsByEntityId[entity.id];
+    var url = meshComp.meshRef.value.ref;
+    //if (url === 'sphere.mesh')
+    //    url = 'android.js';
     if (cube === undefined) {
         if (useCubes) {
-            cube = new THREE.Mesh(this.cubeGeometry, this.cubeMaterial);
+            cube = new THREE.Mesh(this.cubeGeometry, this.wireframeMaterial);
             this.objectsByEntityId[entity.id] = cube;
             this.scene.add(cube);
+        } else if (url === 'lightsphere.mesh') {
+            this.objectsByEntityId[entity.id] = this.pointLight;
+            this.scene.add(this.pointLight);
+            updateFromTransform(this.pointLight, placeable);
         } else {
-            var url = meshComp.meshRef.value.ref;
-            var placeablesForUrl = this.meshCache[url];
+            url = url.replace(/\.mesh$/i, ".json")
+            var entitiesForUrl = this.meshCache[url];
             var firstRef = false;
-            if (placeablesForUrl === undefined) {
-                this.meshCache[url] = placeablesForUrl = [];
+            if (entitiesForUrl === undefined) {
+                this.meshCache[url] = entitiesForUrl = [];
                 firstRef = true;
             }
-            placeablesForUrl.push(placeable);
+            entitiesForUrl.push(entity);
             if (!firstRef)
                 return;
             console.log("new mesh ref:", url);          
             var thisIsThis = this;
-            jsonLoad(url.replace(/\.mesh$/i, ".json"),
+            jsonLoad(url,
                      function (geometry, material) {                        
-                         thisIsThis.addMeshToPlaceables(geometry, material, url);
+                         thisIsThis.addMeshToEntities(geometry, material, url);
                          //updateFromTransform(threeMesh, placeable);
                          console.log("loaded & updated to scene:", url);
                      });
@@ -139,16 +142,20 @@ ThreeView.prototype.addOrUpdate = function(entity, placeable, meshComp) {
     }
 };
 
-ThreeView.prototype.addMeshToPlaceables = function(geometry, material, url) {
-    var placeables = this.meshCache[url];
-    material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, overdraw: 0.5 } );
-    for (var i = 0; i < placeables.length; i++) {
-        var pl = placeables[i];
-        var mesh = new THREE.Mesh(geometry, material);
+ThreeView.prototype.addMeshToEntities = function(geometry, material, url) {
+    var entities = this.meshCache[url];
+    checkDefined(entities);
+    //material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, overdraw: 0.5 } );
+    for (var i = 0; i < entities.length; i++) {
+        var ent = entities[i];
+        check(ent instanceof Entity);
+        var pl = ent.componentByType("Placeable");
+        var mesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(material));      
         updateFromTransform(mesh, pl);
         this.scene.add(mesh);
+        this.objectsByEntityId[ent.id] = mesh;
     }
-    placeables.length = 0;
+    entities.length = 0;
 };
 
 function TestApp(dataConnection, viewer) {
@@ -184,7 +191,7 @@ TestApp.prototype.dataToViewerUpdate = function() {
         //     continue;
         // else
         //     entity.registeredWithViewer = true;
-        var placeable = null;
+        var placeable = entity.componentByType("Placeable");
         var meshes = [];
         var j;
         for (j in entity.components) {
