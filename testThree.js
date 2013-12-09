@@ -1,6 +1,6 @@
 // For conditions of distribution and use, see copyright notice in LICENSE
 /* jslint browser: true, globalstrict: true, devel: true, debug: true */
-/* global WebSocketClient, Scene, SyncManager, THREE, document, window, console, requestAnimationFrame, performance */
+/* global WebSocketClient, Scene, SyncManager, THREE, THREEx, performance */
 "use strict";
 
 var useCubes = false;
@@ -16,6 +16,16 @@ function WTModel() {
 
 function setXyz(thing, x, y, z) {
     thing.x = x; thing.y = y; thing.z = z;
+}
+
+function attributeValues(o) {
+    var out = [];
+    for (var key in o) {
+        if (!o.hasOwnProperty(key))
+            continue;
+        out.push(o[key]);
+    }
+    return out;
 }
 
 function ThreeView() {
@@ -37,10 +47,17 @@ function ThreeView() {
 
     this.scene = new THREE.Scene();
     this.scene.add(this.camera);
+    this.projector = new THREE.Projector();
+    var thisIsThis = this;
+    document.addEventListener( 'mousedown', function(event) {
+        var ray = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+        var mouseVector = new THREE.Vector3( mouse.x, mouse.y, 1 );
+        thisIsThis.projector.unprojectVector( mouseVector, camera );
+        var intersects = ray.intersectObjects(attributeValues(thisIsThis.objectsByEntityId));
+    }, false );
 
     this.pointLight = new THREE.PointLight(0xffffff);
     this.pointLight.position.set(-100,200,100);
-
     this.scene.add(new THREE.AmbientLight(0x6b6b6b));
     
     var geometry = new THREE.CubeGeometry( 2, 2, 2 );
@@ -54,6 +71,11 @@ function ThreeView() {
     this.cubeGeometry = geometry;
     this.cubeMaterial = material;
     this.wireframeMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00, wireframe: true, transparent: true } );
+
+    // debug
+    this.entitiesSeen = {};
+    this.entitiesWithMeshesSeen = {};
+
 }
 
 function jsonLoad(url, addCallback) {
@@ -64,17 +86,29 @@ function jsonLoad(url, addCallback) {
 
 }
 
+var debugOnCheckFail = true;
+
 function checkDefined() {
-    for (var i = 0; i < arguments.length; i++)
-        if (arguments[i] === undefined)
-            debugger; // throw("undefined value, arg #" + i);
+    for (var i = 0; i < arguments.length; i++) {
+        if (arguments[i] === undefined) {
+            if (debugOnCheckFail) {
+                debugger;
+            } else {
+                throw("undefined value, arg #" + i);
+            }
+        }
+    }
 }
 
 function check() {
     for (var i = 0; i < arguments.length; i++)
         if (arguments[i] !== true)
-            debugger; // throw("undefined value, arg #" + i);
-}
+            if (debugOnCheckFail) {
+                debugger;
+            } else {
+                throw("untrue value" + arguments[i] + ", arg #" + i);
+            }
+ }
 
 ThreeView.prototype.render = function() {
     checkDefined(this.scene, this.camera);
@@ -106,8 +140,8 @@ ThreeView.prototype.addOrUpdate = function(entity, placeable, meshComp) {
     checkDefined(entity.id);
     var cube = this.objectsByEntityId[entity.id];
     var url = meshComp.meshRef.value.ref;
-    //if (url === 'sphere.mesh')
-    //    url = 'android.js';
+    if (url === 'sphere.mesh')
+       url = 'android.js';
     if (cube === undefined) {
         if (useCubes) {
             cube = new THREE.Mesh(this.cubeGeometry, this.wireframeMaterial);
@@ -154,6 +188,7 @@ ThreeView.prototype.addMeshToEntities = function(geometry, material, url) {
         updateFromTransform(mesh, pl);
         this.scene.add(mesh);
         this.objectsByEntityId[ent.id] = mesh;
+        mesh.userData.entityId = ent.id;
     }
     entities.length = 0;
 };
@@ -186,6 +221,7 @@ TestApp.prototype.dataToViewerUpdate = function() {
         if (!sceneData.entities.hasOwnProperty(i))
             continue;
         var entity = sceneData.entities[i];
+        this.viewer.entitiesSeen[i] = true;
         checkDefined(entity);
         // if (entity.registeredWithViewer === true)
         //     continue;
@@ -205,8 +241,10 @@ TestApp.prototype.dataToViewerUpdate = function() {
                 placeable = comp;
         }
         if (placeable !== null)
-            for (j in Object.keys(meshes))
+            for (j in Object.keys(meshes)) {
+                this.viewer.entitiesWithMeshesSeen[i] = true;
                 this.viewer.addOrUpdate(entity, placeable, meshes[j]);
+            }
     }
 };
 
